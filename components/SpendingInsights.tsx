@@ -1,19 +1,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, TrendingUp, TrendingDown, ShoppingBag, Utensils, Car, Zap, Film, BarChart3, ChevronRight, Brain, Loader2 } from 'lucide-react';
-import { TransactionRecord } from '../types';
+import { Sparkles, TrendingUp, TrendingDown, ShoppingBag, Utensils, Car, Zap, Film, BarChart3, Brain, Loader2 } from 'lucide-react';
 import { getTransactions } from '../services/db';
 import { getCurrencySymbol, formatFiat } from '../utils/currency';
 
-const CATEGORY_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
-  Shopping:      { icon: <ShoppingBag size={14} />, color: 'text-pink-400', bg: 'bg-pink-500/10' },
-  Food:          { icon: <Utensils size={14} />, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-  Travel:        { icon: <Car size={14} />, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-  Bills:         { icon: <Zap size={14} />, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-  Entertainment: { icon: <Film size={14} />, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-  Other:         { icon: <BarChart3 size={14} />, color: 'text-zinc-400', bg: 'bg-zinc-500/10' },
-  Savings:       { icon: <TrendingUp size={14} />, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-  Withdrawal:    { icon: <TrendingDown size={14} />, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+const CATEGORY_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; gradient: string }> = {
+  Shopping: { icon: <ShoppingBag size={14} />, color: 'text-pink-400', bg: 'bg-pink-500/10', gradient: 'from-pink-500 to-rose-500' },
+  Food: { icon: <Utensils size={14} />, color: 'text-orange-400', bg: 'bg-orange-500/10', gradient: 'from-orange-500 to-amber-500' },
+  Travel: { icon: <Car size={14} />, color: 'text-blue-400', bg: 'bg-blue-500/10', gradient: 'from-blue-500 to-indigo-500' },
+  Bills: { icon: <Zap size={14} />, color: 'text-yellow-400', bg: 'bg-yellow-500/10', gradient: 'from-yellow-500 to-orange-400' },
+  Entertainment: { icon: <Film size={14} />, color: 'text-purple-400', bg: 'bg-purple-500/10', gradient: 'from-purple-500 to-violet-500' },
+  Other: { icon: <BarChart3 size={14} />, color: 'text-[#E5D5B3]', bg: 'bg-[#E5D5B3]/10', gradient: 'from-[#E5D5B3] to-[#D4874D]' },
+  Savings: { icon: <TrendingUp size={14} />, color: 'text-emerald-400', bg: 'bg-emerald-500/10', gradient: 'from-emerald-500 to-teal-500' },
+  Withdrawal: { icon: <TrendingDown size={14} />, color: 'text-amber-400', bg: 'bg-amber-500/10', gradient: 'from-amber-500 to-orange-600' },
 };
 
 interface CategorySummary {
@@ -29,10 +28,10 @@ interface SpendingInsightsProps {
 }
 
 const AI_INSIGHT_TEMPLATES = [
-  (top: string, pct: number) => `You're spending ${pct}% on ${top} this month — your highest category. Consider setting a limit.`,
-  (top: string, pct: number) => `${top} is taking up ${pct}% of your budget. Try the Gullak round-up on every ${top} payment to save passively!`,
-  (top: string, _: number) => `Smart tip: Switch ${top} payments to Chillar mode to automatically save the change.`,
-  (top: string, pct: number) => `Your ${top} spending (${pct}%) is above average. Review your recent transactions to spot patterns.`,
+  (top: string, pct: number) => `You're spending ${pct}% on ${top} this month. Consider setting a limit to boost your Gullak savings.`,
+  (top: string, pct: number) => `${top} accounts for ${pct}% of your budget. Switch to Chillar mode for these to save the change!`,
+  (top: string, _: number) => `Smart habit: Enable Gullak round-ups on ${top} payments to passively grow your wealth.`,
+  (top: string, pct: number) => `Your ${top} spending is at ${pct}%. Reviewing these could uncover hidden savings potential.`,
 ];
 
 const SpendingInsights: React.FC<SpendingInsightsProps> = ({ stellarId, currency = 'INR' }) => {
@@ -56,14 +55,12 @@ const SpendingInsights: React.FC<SpendingInsightsProps> = ({ stellarId, currency
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-        // Current month sent transactions
         const currentMonth = txs.filter(tx =>
           tx.fromId === stellarId &&
           tx.status === 'SUCCESS' &&
           tx.timestamp?.seconds * 1000 >= monthStart.getTime()
         );
 
-        // Previous month
         const prevMonth = txs.filter(tx =>
           tx.fromId === stellarId &&
           tx.status === 'SUCCESS' &&
@@ -81,7 +78,6 @@ const SpendingInsights: React.FC<SpendingInsightsProps> = ({ stellarId, currency
           setComparedPercent(Math.round(diff));
         }
 
-        // Category breakdown
         const catMap: Record<string, { total: number; count: number }> = {};
         currentMonth.forEach(tx => {
           const cat = tx.category || 'Other';
@@ -102,10 +98,9 @@ const SpendingInsights: React.FC<SpendingInsightsProps> = ({ stellarId, currency
 
         setCategories(summaries);
 
-        // Generate AI insight
         if (summaries.length > 0) {
           setGeneratingInsight(true);
-          await new Promise(r => setTimeout(r, 800)); // simulated AI "thinking"
+          await new Promise(r => setTimeout(r, 1200));
           const top = summaries[0];
           const template = AI_INSIGHT_TEMPLATES[Math.floor(Math.random() * AI_INSIGHT_TEMPLATES.length)];
           setAiInsight(template(top.name, top.percent));
@@ -123,8 +118,9 @@ const SpendingInsights: React.FC<SpendingInsightsProps> = ({ stellarId, currency
 
   if (loading) {
     return (
-      <div className="mx-6 mt-6 bg-zinc-900/30 border border-white/5 rounded-3xl p-5 flex items-center justify-center h-32">
-        <div className="w-5 h-5 border-2 border-[#E5D5B3]/30 border-t-[#E5D5B3] rounded-full animate-spin" />
+      <div className="mx-6 mt-8 animate-pulse">
+        <div className="h-6 w-32 bg-zinc-800 rounded-lg mb-4"></div>
+        <div className="h-48 bg-zinc-900/50 rounded-3xl border border-white/5"></div>
       </div>
     );
   }
@@ -134,75 +130,71 @@ const SpendingInsights: React.FC<SpendingInsightsProps> = ({ stellarId, currency
   const maxTotal = categories[0]?.total || 1;
 
   return (
-    <div className="mx-6 mt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-violet-500/15 border border-violet-500/25 rounded-xl flex items-center justify-center">
-            <Brain size={14} className="text-violet-400" />
+    <div className="mx- mt-10">
+      <div className="flex items-center justify-between mb-5 px-1">
+        <div className="flex items-center gap-3">
+
+          <div>
+            <span className="text-xs font-black uppercase -[0.2em] text-white/90 block leading-tight">AI Insights</span>
+            <span className="text-[10px] text-zinc-500 font-bold uppercase -widest">Spending Analytics</span>
           </div>
-          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/80">AI Spending Insights</span>
         </div>
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-          comparedPercent > 0 ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'
-        }`}>
-          {comparedPercent > 0 ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-          {Math.abs(comparedPercent)}% vs last month
+
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border text-[10px] font-black uppercase -widest transition-all ${comparedPercent > 0
+          ? 'bg-rose-500/5 border-rose-500/20 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.05)]'
+          : 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.05)]'
+          }`}>
+          {comparedPercent > 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+          {Math.abs(comparedPercent)}% vs LY
         </div>
       </div>
 
-      {/* Main Card */}
-      <div className="bg-gradient-to-br from-zinc-900/60 to-zinc-900/30 border border-white/5 rounded-3xl p-5 overflow-hidden relative">
-        {/* Subtle glow */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/5 blur-2xl rounded-full pointer-events-none" />
+      <div className="relative bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-[1.5rem] p-7 overflow-hidden shadow-2xl group">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-violet-500/15 transition-all duration-700" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#E5D5B3]/5 blur-[80px] rounded-full translate-y-1/2 -translate-x-1/2" />
 
-        {/* Total this month */}
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex items-end justify-between mb-8 relative z-10">
           <div>
-            <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mb-1">This Month</p>
-            <p className="text-2xl font-black tracking-tight">
-              {symbol}{formatFiat(totalSpent, currency)}
-            </p>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase -[0.15em] mb-1.5">MONTHLY OUTFLOW</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-black text-[#E5D5B3]">{symbol}</span>
+              <h3 className="text-3xl font-black -tighter text-white">
+                {formatFiat(totalSpent, currency).split('.')[0]}<span className="text-xl text-zinc-600">.{formatFiat(totalSpent, currency).split('.')[1] || '00'}</span>
+              </h3>
+            </div>
           </div>
           <div className="text-right">
-            <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Categories</p>
-            <p className="text-sm font-black text-zinc-400">{categories.length} active</p>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase -[0.15em] mb-1.5">CATEGORIES</p>
+            <p className="text-lg font-black text-white">{categories.length} <span className="text-xs text-zinc-600 uppercase">Tracked</span></p>
           </div>
         </div>
 
-        {/* Category Bars */}
-        <div className="space-y-3 mb-5">
-          {categories.map((cat) => {
+        <div className="space-y-5 mb-8 relative z-10">
+          {categories.map((cat, idx) => {
             const cfg = CATEGORY_CONFIG[cat.name] || CATEGORY_CONFIG['Other'];
             const barWidth = (cat.total / maxTotal) * 100;
 
             return (
-              <div key={cat.name}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-lg ${cfg.bg} flex items-center justify-center ${cfg.color}`}>
+              <div key={cat.name} className="animate-in fade-in slide-in-from-left duration-700" style={{ animationDelay: `${idx * 150}ms` }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl ${cfg.bg} flex items-center justify-center ${cfg.color} border border-white/5`}>
                       {cfg.icon}
                     </div>
-                    <span className="text-[11px] font-bold text-zinc-300">{cat.name}</span>
-                    <span className="text-[9px] text-zinc-600 font-bold">{cat.count}x</span>
+                    <div>
+                      <span className="text-xs font-black text-zinc-200 block leading-tight">{cat.name}</span>
+                      <span className="text-[9px] text-zinc-600 font-bold uppercase -widest">{cat.count} Payments</span>
+                    </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-[11px] font-black">{symbol}{formatFiat(cat.total, currency)}</span>
-                    <span className="text-[9px] text-zinc-600 font-bold ml-1">{cat.percent}%</span>
+                    <div className="text-xs font-black text-white">{symbol}{formatFiat(cat.total, currency)}</div>
+                    <div className="text-[9px] font-black text-zinc-500 uppercase -tighter mt-0.5">{cat.percent}% share</div>
                   </div>
                 </div>
-                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-2 bg-white/5 rounded-full overflow-hidden p-[2px]">
                   <div
-                    className="h-full rounded-full transition-all duration-1000"
-                    style={{
-                      width: `${barWidth}%`,
-                      background: cat.name === 'Shopping' ? 'linear-gradient(90deg, #ec4899, #f472b6)'
-                        : cat.name === 'Food' ? 'linear-gradient(90deg, #f97316, #fb923c)'
-                        : cat.name === 'Travel' ? 'linear-gradient(90deg, #3b82f6, #60a5fa)'
-                        : cat.name === 'Bills' ? 'linear-gradient(90deg, #eab308, #fbbf24)'
-                        : cat.name === 'Entertainment' ? 'linear-gradient(90deg, #8b5cf6, #a78bfa)'
-                        : 'linear-gradient(90deg, #E5D5B3, #D4874D)'
-                    }}
+                    className={`h-full rounded-full bg-gradient-to-r ${cfg.gradient} transition-all duration-1000 shadow-[0_0_8px_rgba(0,0,0,0.5)]`}
+                    style={{ width: `${barWidth}%` }}
                   />
                 </div>
               </div>
@@ -210,23 +202,7 @@ const SpendingInsights: React.FC<SpendingInsightsProps> = ({ stellarId, currency
           })}
         </div>
 
-        {/* AI Insight Box */}
-        <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-7 h-7 bg-violet-500/20 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-            {generatingInsight ? (
-              <Loader2 size={13} className="text-violet-400 animate-spin" />
-            ) : (
-              <Sparkles size={13} className="text-violet-400" />
-            )}
-          </div>
-          <p className="text-[11px] text-zinc-300 font-medium leading-relaxed">
-            {generatingInsight ? (
-              <span className="text-violet-400/60 animate-pulse">Analyzing your spending patterns...</span>
-            ) : (
-              aiInsight
-            )}
-          </p>
-        </div>
+
       </div>
     </div>
   );
