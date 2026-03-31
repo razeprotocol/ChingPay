@@ -128,7 +128,7 @@ export class ScheduledPayService {
 
             // Check balance
             const balanceStr = await getBalance(profile.publicKey);
-            const xlmAmount = await calculateCryptoToSend(payment.amount, 'stellar', 1.02);
+            const xlmAmount = await calculateCryptoToSend(payment.amount, 'stellar', 'INR', 1.02);
             const balance = parseFloat(balanceStr);
 
             if (balance < xlmAmount) {

@@ -14,6 +14,7 @@ import { getTransactions, getProfileByStellarId, getGroups } from '../services/d
 import StreakFire from '../components/StreakFire';
 import { Shield } from 'lucide-react';
 import SecurityPrompt from '../components/SecurityPrompt';
+import SpendingInsights from '../components/SpendingInsights';
 
 interface Props {
   profile: UserProfile | null;
@@ -135,6 +136,13 @@ const Dashboard: React.FC<Props> = ({ profile }) => {
 
       <RewardsCTA />
 
+      {/* AI Spending Insights - New March Feature */}
+      <SpendingInsights
+        stellarId={profile.stellarId}
+        currency={profile.preferredCurrency || 'INR'}
+      />
+
+      <div className="h-8" />
 
       {showCreateGroup && (
         <CreateGroupModal

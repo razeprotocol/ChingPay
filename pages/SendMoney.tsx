@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, FamilyMember, TransactionRecord } from '../types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Send, Search, Wallet, Shield, Zap, ChevronRight, Users, Smartphone, Share2, BadgeIndianRupee, PiggyBank, Check, EyeOff } from 'lucide-react';
+import { ArrowLeft, Send, Search, Wallet, Shield, Zap, ChevronRight, Users, Smartphone, Share2, BadgeIndianRupee, PiggyBank, Check, EyeOff, ArrowLeftRight } from 'lucide-react';
 import { getUsersByPhones, getUserById, recordTransaction, getTransactions, updateFamilySpend, getProfile, getProfileByStellarId, getProfileByPublicKey, updatePersonalSpend, updateSplitPayment, updateRequestStatus } from '../services/db';
 import { sendPayment, getBalance } from '../services/stellar';
 import { getLivePrice, calculateCryptoToSend } from '../services/priceService';
@@ -26,6 +26,8 @@ import { WalletConnectService } from '../services/walletConnectService';
 import { getCurrencySymbol, formatFiat } from '../utils/currency';
 import { LiquidationService, SANDBOX_BRIDGE_ADDRESS } from '../services/liquidationService';
 import { isAccountFunded } from '../services/stellar';
+import PathPaymentSelector from '../components/PathPaymentSelector';
+import { SupportedAsset, executeDexRoutePayment, PathQuote, STELLAR_ASSETS } from '../services/pathPaymentService';
 
 interface Props {
   profile: UserProfile | null;
@@ -85,8 +87,12 @@ const SendMoney: React.FC<Props> = ({ profile }) => {
   const [txHash, setTxHash] = useState<string | undefined>();
   const [statusMessage, setStatusMessage] = useState<string>('');
 
-  const [selectedAsset, setSelectedAsset] = useState<'XLM'>('XLM');
+  const [selectedAsset, setSelectedAsset] = useState<SupportedAsset>('XLM');
   const [xlmRate, setXlmRate] = useState<number>(15.02);
+  // Path Payment (Multi-Asset via Stellar DEX)
+  const [isPathPayment, setIsPathPayment] = useState(false);
+  const [dexQuote, setDexQuote] = useState<PathQuote | null>(null);
+  const [dexRouteAsset, setDexRouteAsset] = useState<SupportedAsset>('XLM');
 
   const [onStellarContacts, setOnStellarContacts] = useState<Contact[]>([]);
   const [inviteContacts, setInviteContacts] = useState<{ name: string, phone: string }[]>([]);
@@ -552,6 +558,26 @@ const SendMoney: React.FC<Props> = ({ profile }) => {
 
           await updateStreak(profile.uid);
           await recordGullakDeposit(profile.uid, chillarAmount);
+        } else if (isPathPayment && dexQuote && dexRouteAsset !== 'XLM') {
+          // ─── DEX ROUTE PAYMENT via Stellar ───
+          // Sender always pays XLM, DEX routes through chosen asset atomically.
+          // No trustline needed. No op_src_no_trust possible.
+          setStatusMessage('Executing DEX Route...');
+          const xlmAmount = await calculateCryptoToSend(amtNum, 'stellar', currency, 1.02);
+
+          // Refresh the quote with exact XLM amount
+          const finalQuote = {
+            ...dexQuote,
+            destXlmAmount: xlmAmount.toFixed(7),
+            maxSourceXlm: (xlmAmount * 1.02).toFixed(7), // 2% slippage
+          };
+
+          hash = await executeDexRoutePayment(
+            secret,
+            recipientPubKey,
+            finalQuote,
+            memo || `DEX via ${STELLAR_ASSETS[dexRouteAsset].code}: ${selectedContact.id}`
+          );
         } else {
           setChillarSavings(0);
           const xlmAmount = await calculateCryptoToSend(amtNum, 'stellar', currency, 1.02);
@@ -594,7 +620,7 @@ const SendMoney: React.FC<Props> = ({ profile }) => {
           status: 'SUCCESS',
           txHash: hash,
           isFamilySpend: false,
-          asset: selectedAsset,
+          asset: 'XLM' as 'XLM',
           blockchainNetwork: isEthereumMode ? 'ETHEREUM' : 'STELLAR',
           category: category,
           isIncognito: isIncognito,
@@ -1082,8 +1108,26 @@ const SendMoney: React.FC<Props> = ({ profile }) => {
             ))}
           </div>
 
+          {/* Path Payment - DEX Routing (no trustline needed) */}
+          {paymentMethod === 'wallet' && selectedContact?.id.endsWith('@stellar') && amount && parseFloat(amount) > 0 && (
+            <div className="mt-4">
+              <PathPaymentSelector
+                senderPublicKey={profile?.publicKey || ''}
+                xlmAmountToSend={(parseFloat(amount) / xlmRate).toFixed(6)}
+                disabled={loading}
+                onRouteSelect={(routeAsset, quote) => {
+                  setDexRouteAsset(routeAsset);
+                  setIsPathPayment(routeAsset !== 'XLM');
+                  setDexQuote(quote);
+                }}
+              />
+            </div>
+          )}
+
+
+
           {/* Chillar Savings Toggle */}
-          {paymentMethod === 'wallet' && amount && parseFloat(amount) > 0 && (
+          {paymentMethod === 'wallet' && amount && parseFloat(amount) > 0 && !isPathPayment && (
             <div className="mt-6 p-4 bg-zinc-50 rounded-2xl border border-zinc-100 animate-in fade-in slide-in-from-top-2 duration-500">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
@@ -1125,6 +1169,8 @@ const SendMoney: React.FC<Props> = ({ profile }) => {
               )}
             </div>
           )}
+
+          {/* Path Payment - Chillar is disabled for path payments */}
 
           <button
             onClick={handlePay}
